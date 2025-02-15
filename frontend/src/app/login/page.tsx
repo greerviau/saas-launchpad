@@ -38,7 +38,7 @@ export default function LoginPage() {
           },
         }
       );
-      login(data.token);
+      login(data.access_token.token);
     } catch (error) {
       console.error("Google login failed:", error);
       setError(error instanceof Error ? error.message : "Login failed");
@@ -70,7 +70,7 @@ export default function LoginPage() {
           },
         }
       );
-      login(data.token);
+      login(data.access_token.token);
     } catch (err) {
       setError("Invalid email or password");
       setEmail("");
@@ -83,6 +83,15 @@ export default function LoginPage() {
       <div className="w-full max-w-md space-y-8 p-8">
         <div className="text-center">
           <h2 className="text-3xl font-bold">Sign in to your account</h2>
+          <p className="mt-2 text-sm text-gray-600">
+            Don't have an account?{" "}
+            <a
+              href="/signup"
+              className="text-indigo-600 hover:text-indigo-500 font-medium"
+            >
+              Sign up here
+            </a>
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-6">
@@ -143,7 +152,6 @@ export default function LoginPage() {
               </span>
             </div>
           </div>
-
           <div className="mt-6 flex justify-center">
             <button
               onClick={() => googleLogin()}

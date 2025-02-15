@@ -1,12 +1,12 @@
 services:
-  db:
+  sass-launchpad-db:
     image: postgres:16
     environment:
       POSTGRES_DB: sass-launchpad
       POSTGRES_USER: sass-launchpad-user
       POSTGRES_PASSWORD: sass-launchpad-password
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/sass-launchpad-data
     ports:
       - "5432:5432"
     healthcheck:
@@ -15,16 +15,16 @@ services:
       timeout: 5s
       retries: 5
 
-  rest-api:
+  sass-launchpad-api:
     build:
       context: ./
       dockerfile: Dockerfile
     environment:
-      DATABASE_URL: postgresql+asyncpg://sass-launchpad-user:sass-launchpad-password@db:5432/sass-launchpad
+      DATABASE_URL: postgresql+asyncpg://sass-launchpad-user:sass-launchpad-password@sass-launchpad-db:5432/sass-launchpad
     ports:
       - "8000:8000"
     depends_on:
-      db:
+      sass-launchpad-db:
         condition: service_healthy
     volumes:
       - ./.env:/app/.env

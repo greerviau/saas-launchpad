@@ -34,16 +34,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const router = useRouter();
 
-  const login = useCallback(
-    (token: string) => {
-      setAccessToken(token);
-      setIsAuthenticated(true);
-      router.push("/dashboard");
-    },
-    [router]
-  );
+  const login = useCallback((token: string) => {
+    setAccessToken(token);
+    setIsAuthenticated(true);
+  }, []);
 
   const logout = useCallback(async () => {
+    console.log("log out");
     try {
       await api.post("/users/logout");
     } catch (error) {
@@ -53,18 +50,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsAuthenticated(false);
       router.push("/login");
     }
-  }, [router]);
+  }, []);
 
   const refreshTokenFn = useCallback(async () => {
     try {
-      const response = await api.get("/users/refresh");
-      const { token } = response.data;
-
-      setAccessToken(token);
+      const { data } = await api.get("/users/refresh");
       setIsAuthenticated(true);
+      setAccessToken(data.token);
       setIsLoading(false);
       console.log("User is authenticated");
-      return token;
+      return data.token;
     } catch (error) {
       console.error("Failed to refresh token:", error);
       setIsAuthenticated(false);
@@ -98,31 +93,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [accessToken]);
 
   useLayoutEffect(() => {
-    const responseInterceptor = api.interceptors.response.use(
+    const refreshInterceptor = api.interceptors.response.use(
       (response) => response,
       async (error) => {
         const originalRequest = error.config;
+
+        // Skip refresh token logic for refresh and logout endpoints
+        if (
+          originalRequest.url === "/users/refresh" ||
+          originalRequest.url === "/users/logout" ||
+          originalRequest.url === "/users/login"
+        ) {
+          return Promise.reject(error);
+        }
 
         // Handle rate limiting (429) separately
         if (error.response?.status === 429) {
           console.error("Rate limit exceeded:", error.response?.data);
           return Promise.reject(error);
         }
-
         // Only attempt refresh for 401 errors
         if (error.response?.status === 401 && !originalRequest._retry) {
           try {
             originalRequest._retry = true;
+
             const token = await refreshTokenFn();
             if (!token) {
               throw new Error("Failed to refresh token");
             }
             originalRequest.headers.Authorization = `Bearer ${token}`;
             return api(originalRequest);
-          } catch (refreshError) {
-            console.error("Refresh token failed:", refreshError);
+          } catch (error) {
+            console.error("Failed to refresh token:", error);
             await logout();
-            return Promise.reject(refreshError);
+            return Promise.reject(error);
           }
         }
         return Promise.reject(error);
@@ -130,9 +134,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     );
 
     return () => {
-      api.interceptors.response.eject(responseInterceptor);
+      api.interceptors.response.eject(refreshInterceptor);
     };
-  }, [refreshTokenFn]);
+  }, [refreshTokenFn, logout]);
 
   // Update the Provider value using useMemo for better performance
   const authContextValue = useMemo(
